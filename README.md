@@ -47,7 +47,8 @@ After successfully installing the required packages, you can run the main script
     ```
 ## Results
 
-![GIF](GIF/ClearTrack.gif)
+<img src="GIF/ClearTrack.gif" width="500"/>
+
 ## Contact
 
 For any issues or questions, feel free to contact me at meconidomenico@gmail.com
