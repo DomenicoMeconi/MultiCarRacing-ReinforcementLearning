@@ -45,7 +45,9 @@ After successfully installing the required packages, you can run the main script
     ```bash
     python .\main -e -c
     ```
+## Results
 
+![GIF](GIF/ClearTrack.gif)
 ## Contact
 
 For any issues or questions, feel free to contact me at meconidomenico@gmail.com
