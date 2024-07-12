@@ -6,7 +6,7 @@ This project is based on the concepts presented in the paper [Emergent Coordinat
 ## Installation
 
 1. **Install And Set Up The Environment:**
-    Please follow the steps in this git: [https://github.com/igilitschenski/multi_car_racing.git](https://github.com/igilitschenski/multi_car_racing.git)
+    Please follow the steps in this [multi_car_racing git](https://github.com/igilitschenski/multi_car_racing.git)
 
 2. **Ensure Python Version:**
     Make sure you are using Python version greater than 3.11.
