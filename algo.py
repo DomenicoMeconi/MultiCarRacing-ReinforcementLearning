@@ -1,10 +1,7 @@
 import random
 import torch
 import torch.nn as nn
-from tqdm import tqdm
-import gc
 
-#try soft actor critic
 ################################ SVG0 ################################
 def compute_q_retrace(agent, batch, GAMMA):
     # Extract states, actions, rewards, and next_states from the batch
@@ -49,11 +46,8 @@ def train_critic_svg0(agent, index, GAMMA, K_STEPS):
 
     agent.critic_network.optimizer.zero_grad()
     critic_loss.backward()
-    #torch.nn.utils.clip_grad_norm_(agent.critic_network.parameters(), max_norm=1.0)
     agent.critic_network.optimizer.step()
-    
-    #update_target_network(agent.critic_network, target_network)
-    
+        
     return critic_loss
 
 def entropy_loss(logits):
@@ -63,8 +57,6 @@ def entropy_loss(logits):
     return entropy
 
 def train_policy_svg0(agent, index, ENTROPY_COEFF=0.005):
-    #policy = copy.deepcopy(agent.policy_network)
-    
     #for index in batch_indices:
     state, action, _, _ = agent.replay_buffer[index]
     
@@ -75,7 +67,6 @@ def train_policy_svg0(agent, index, ENTROPY_COEFF=0.005):
     policy_loss = -q_value.mean()
     
     # Add entropy loss
-    
     logits = agent.policy_network(state)
     ent_loss = entropy_loss(logits)
     policy_loss += ENTROPY_COEFF * ent_loss
@@ -83,38 +74,23 @@ def train_policy_svg0(agent, index, ENTROPY_COEFF=0.005):
 
     agent.policy_network.optimizer.zero_grad()
     policy_loss.backward()
-    #torch.nn.utils.clip_grad_norm_(agent.policy_network.parameters(), max_norm=1.0)
     agent.policy_network.optimizer.step()
 
     return policy_loss.item()
 
 def off_policy_svg0(agent, GAMMA, K_STEPS, BATCH_SIZE=None):
     
-    if BATCH_SIZE is None:
-        #sample 1 index from replay buffer
-        index = random.sample(range(len(agent.replay_buffer)), 1)
-        
-        loss = train_critic_svg0(agent, index[0], GAMMA, K_STEPS)
-        policy_loss = train_policy_svg0(agent, len(agent.replay_buffer)-1)
-    else:
-        batch_indices = random.sample(range(len(agent.replay_buffer)), BATCH_SIZE)
-        for i,index in enumerate(batch_indices):
-            if i % 100 == 0:
-                agent.target_policy.load_state_dict(agent.policy_network.state_dict())
-                agent.target_critic.load_state_dict(agent.critic_network.state_dict())
-            loss = train_critic_svg0(agent, index, GAMMA, K_STEPS)
-            policy_loss = train_policy_svg0(agent, index)
-        
-        agent.target_policy.load_state_dict(agent.policy_network.state_dict())
-        agent.target_critic.load_state_dict(agent.critic_network.state_dict())
-
-    #agent.policy_network.scheduler.step()
-    #agent.critic_network.scheduler.step()
+    #sample 1 index from replay buffer
+    index = random.sample(range(len(agent.replay_buffer)), 1)
+    
+    loss = train_critic_svg0(agent, index[0], GAMMA, K_STEPS)
+    policy_loss = train_policy_svg0(agent, len(agent.replay_buffer)-1)
 
 ################################ END SVG0 ################################
+
+################################ DDPG ################################
 STATE_SIZE = (3, 96, 96)
 ACTION_SIZE = 3
-
 
 def update_target_network(target_network, main_network):
     for target_param, main_param in zip(target_network.parameters(), main_network.parameters()):
@@ -126,11 +102,13 @@ def update(agent, population, GAMMA, BATCH_SIZE=64, critic_network=None, target_
         BATCH_SIZE = len(agent.replay_buffer)
     batch_indices = random.sample(range(len(agent.replay_buffer)), BATCH_SIZE)
 
+    #initialize batch tensors
     state_batch = torch.zeros((BATCH_SIZE, STATE_SIZE[0], STATE_SIZE[1], STATE_SIZE[2]))
     action_batch = torch.zeros((BATCH_SIZE, ACTION_SIZE))
     reward_batch = torch.zeros(BATCH_SIZE)
     next_state_batch = torch.zeros((BATCH_SIZE, STATE_SIZE[0], STATE_SIZE[1], STATE_SIZE[2]))
 
+    #fill batch tensors
     for i, index in enumerate(batch_indices):
         state, action, reward, next_state = agent.replay_buffer[index]
         state_batch[i] = state
@@ -146,47 +124,64 @@ def update(agent, population, GAMMA, BATCH_SIZE=64, critic_network=None, target_
 
     learn(agent, state_batch, action_batch, reward_batch, next_state_batch, GAMMA, critic_network, target_critic)
 
+    #free memory
     del state_batch, action_batch, reward_batch, next_state_batch
     torch.cuda.empty_cache()
 
 
 def learn(agent, state, action, reward, next_state, GAMMA, critic_network, target_critic):
+    #This part is used if each agent has its own critic network
     if critic_network is None and target_critic is None:
         with torch.no_grad():
+            #compute target Q value
             next_action = agent.target_policy(next_state)
             critic_out = agent.target_critic(next_state, next_action)
             y = reward + GAMMA * critic_out
-
+        
+        #compute Q value
         q = agent.critic_network(state, action)
+
+        #compute critic loss
         critic_loss = nn.MSELoss()(q, y)
 
+        #update critic network
         agent.critic_network.optimizer.zero_grad()
         critic_loss.backward()
         agent.critic_network.optimizer.step()
 
+        #compute policy loss
         critic_out = agent.critic_network(state, agent.policy_network(state))
         policy_loss = -critic_out.mean()
 
+        #update policy network
         agent.policy_network.optimizer.zero_grad()
         policy_loss.backward()
         agent.policy_network.optimizer.step()
-    
+
+    #This part is used if all agents share the same critic network
     else:
         with torch.no_grad():
+            #compute target Q value
             next_action = agent.target_policy(next_state)
             critic_out = target_critic(next_state, next_action)
             y = reward + GAMMA * critic_out
 
+        #compute Q value
         q = critic_network(state, action)
+
+        #compute critic loss
         critic_loss = nn.MSELoss()(q, y)
 
+        #update critic network
         critic_network.optimizer.zero_grad()
         critic_loss.backward()
         critic_network.optimizer.step()
 
+        #compute policy loss
         critic_out = critic_network(state, agent.policy_network(state))
         policy_loss = -critic_out.mean()
 
+        #update policy network
         agent.policy_network.optimizer.zero_grad()
         policy_loss.backward()
         agent.policy_network.optimizer.step()
@@ -194,3 +189,4 @@ def learn(agent, state, action, reward, next_state, GAMMA, critic_network, targe
     update_target_network(target_critic, critic_network)
     update_target_network(agent.target_policy, agent.policy_network)
 
+################################ END DDPG ################################

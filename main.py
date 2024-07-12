@@ -11,28 +11,42 @@ from algo import off_policy_svg0, update
 from networks import PolicyNetwork, CriticNetwork
 from utils import *
 import os
+from pyglet.window import key
 
 
 ACTION_DIM = 3  
 NUM_AGENTS = 4
 
 ######## HYPERPARAMETERS ########
-BATCH_SIZE = 64 #64 for 1 agent                
+BATCH_SIZE = 64                
 GAMMA = 0.99
-POPULATION_SIZE = 12                     
+POPULATION_SIZE = 12               
 MUTATION_RATE = 0.1             
 MUTATION_SCALE = 0.2            
 INITIAL_RATING = 1200           
 K = 32                                                                              
 K_STEPS = 20
 TSELECT = 0.35                  
-LEARNING_RATE_CRITIC = 0.0002 #0.002 for 1 agent, 0.0008 for 4 agents
-LEARNING_RATE_POLICY = [0.000005 for _ in range(POPULATION_SIZE)] #0.000005 for 1 agent
+LEARNING_RATE_CRITIC = 0.0002 #0.002 for 1 agent # 0.0008 for 4 agents #0.0002 for 12 agents
+LEARNING_RATE_POLICY = [0.000002 + i * 0.000001 for i in range(POPULATION_SIZE)] #0.000005 for 1 agent and 0.000004 for 4 agents
 #################################
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 preview = False
+
+def key_press(k, mod):
+    """If the space bar is pressed, the scene will be rendered."""
+    if k == key.SPACE:
+        global preview
+        preview = True
+
+
+def key_release(k, mod):
+    """If the space bar is released, the scene will not be rendered."""
+    if k == key.SPACE:
+        global preview
+        preview = False
 
 class CriticManager:
     def __init__(self, learning_rate_critic):
@@ -52,9 +66,21 @@ class Agent:
 
         self.target_policy.load_state_dict(self.policy_network.state_dict())
 
-
-
 def evaluate_agents(agents, environment, population, critic_manager = None, eval=False, update_networks=False):
+    """ 
+    Evaluate the agents and update their networks in the environment.
+    
+    Args:
+        agents: The agents to evaluate.
+        environment: The environment to evaluate the agents in.
+        population: The population of agents.
+        critic_manager: The critic manager that contains the critic networks.
+        eval: True when evaluating the agents to render the environment and not update the networks.
+        update_networks: Whether to update the networks or not, used to fill the replay buffer before updating the networks.
+        
+    Returns:
+        The total reward obtained by each agent.
+    """
     indexes = [population.index(agent) for agent in agents]
     print(f"Evaluating agents {indexes}...")
 
@@ -67,7 +93,6 @@ def evaluate_agents(agents, environment, population, critic_manager = None, eval
     while not done:
         states_tensor = torch.tensor(states, dtype=torch.float32).permute(0, 3, 1, 2).to(device)
         actions = []
-
         # Get actions from the policy of each agent
         for agent, state_tensor in zip(agents, states_tensor):
             state_tensor = state_tensor.view(1, 3, 96, 96).to(device)
@@ -106,9 +131,8 @@ def evaluate_agents(agents, environment, population, critic_manager = None, eval
         pbar.update(1)
         total_reward += rewards
         states = next_states
-        if eval:
-            environment.render()
-        elif preview:
+
+        if eval or preview:
             environment.render()
 
     pbar.close()
@@ -116,12 +140,19 @@ def evaluate_agents(agents, environment, population, critic_manager = None, eval
     return total_reward
 
 def save_checkpoint(population, critic_manager):
+    """ 
+    Save the current state of the population.
+    
+    Args:
+        population: The population of agents.
+        critic_manager: The critic manager that contains the critic networks.
+    """
     for agent in population:
         if not os.path.exists(f'checkpoint/agent{population.index(agent)}'):
             os.makedirs(f'checkpoint/agent{population.index(agent)}')
-            
         torch.save(agent.policy_network, f'checkpoint/agent{population.index(agent)}/policy_network.pth')
         torch.save(agent.target_policy, f'checkpoint/agent{population.index(agent)}/target_policy_network.pth')
+        torch.save(agent.policy_network.optimizer.state_dict(), f'checkpoint/agent{population.index(agent)}/optimizer.pth')
 
     torch.save(critic_manager.target_critic, f'checkpoint/target_critic_network.pth')
     torch.save(critic_manager.critic_network, f'checkpoint/critic_network.pth')
@@ -134,21 +165,36 @@ def save_checkpoint(population, critic_manager):
     with open('checkpoint/frame_counts.json', 'w') as f:
         json.dump(frame_counts, f)
 
+    eligible = [agent.eligible for agent in population]
+    with open('checkpoint/eligible.json', 'w') as f:
+        json.dump(eligible, f)
+
 def pbt_training(population, environment, generations, critic_manager, checkpoint=False, update_networks=False):
-    best_rewards = [-1000, -1000] # first reward is the best reward, and so on
+    """
+    Train the population of agents using the Population Based Training algorithm.
+
+    Args:
+        population: The population of agents.
+        environment: The environment to train the agents in.
+        generations: The number of generations to train the agents for.
+        critic_manager: The critic manager that contains the critic networks.
+        checkpoint: True if we are loading a checkpoint, False otherwise.
+        update_networks: True if we are updating the networks, False otherwise.
+    """
+    best_rewards = [-1000, -1000]
 
     for generation in range(generations):
         print(f"Generation {generation + 1}...")
         print(f"Current best rewards: {best_rewards[0]:.2f} || {best_rewards[1]:.2f}") 
 
-        # Choosing 4 random agents each time until the population is exhausted
         population_copy = population.copy()
         population_generation = []
 
-        # If we load models from a checkpoint, we fill the replay buffers before starting the update of the networks
+        # If we load models from a checkpoint, we fill the replay buffers before starting updating the networks
         if checkpoint and generation > 3:
             update_networks = True
 
+        # Choosing 4 random agents each time until the population is exhausted
         while len(population_copy) > 0:
             # Select NUM_AGENTS (4) random agents
             agents = random.sample(population_copy, NUM_AGENTS)
@@ -168,11 +214,10 @@ def pbt_training(population, environment, generations, critic_manager, checkpoin
             for agent, reward in zip(agents, rewards):
                 agent.reward = reward
 
-
         # Save checkpoint
         save_checkpoint(population, critic_manager) 
         
-        # Save the policy and critic if we find a new best reward
+        # Save the policy if we find a new best reward
         if not os.path.exists('best_models'):
             os.makedirs('best_models')
 
@@ -182,14 +227,14 @@ def pbt_training(population, environment, generations, critic_manager, checkpoin
                 best_rewards[1] = best_rewards[0]
                 best_rewards[0] = agent.reward
                 if best_rewards[1] > -1000:
-                    old_best_policy = torch.load('best_models/best_policy_network.pth')
-                    torch.save(old_best_policy, 'best_models/second_best_policy_network.pth')
-                torch.save(agent.policy_network, 'best_models/best_policy_network.pth')
+                    old_best_policy = torch.load('best_models/best_policy_network0.pth')
+                    torch.save(old_best_policy, 'best_models/best_policy_network1.pth')
+                torch.save(agent.policy_network, 'best_models/best_policy_network0.pth')
                 
             elif agent.reward > best_rewards[1]:
                 print(f"New second best reward found: {agent.reward}")
                 best_rewards[1] = agent.reward
-                torch.save(agent.policy_network, 'models/second_best_policy_network.pth')
+                torch.save(agent.policy_network, 'best_models/best_policy_network1.pth')
 
         # For match results, update Elo ratings
         for i in range(0, len(population_generation), 4):
@@ -237,8 +282,6 @@ def main():
 
     num_generations = 10000
 
-    use_4 = False
-
     population = initialize_population(POPULATION_SIZE, LEARNING_RATE_POLICY)
 
     if not args.evaluate:
@@ -246,27 +289,25 @@ def main():
 
     if args.train:
         if args.checkpoint:
-            print("Loading checkpoint...")                 
-            if use_4:
-                for agent in population:
-                    num = random.randint(0, 3)
-                    agent.policy_network = torch.load(f"good/agent{num}/policy_network.pth").to(device)
-                    agent.target_policy = torch.load(f"good/agent{num}/target_policy_network.pth").to(device)
-                critic_manager.critic_network = torch.load('good/agent0/critic_network.pth').to(device)
-                critic_manager.target_critic = torch.load('good/agent0/target_critic_network.pth').to(device)
-            
-            else:
-                ratings = json.load(open('checkpoint/ratings.json'))
-                frame_counts = json.load(open('checkpoint/frame_counts.json'))
-                for agent in population:
-                    agent.policy_network = torch.load(f'checkpoint/agent{population.index(agent)}/policy_network.pth').to(device)
-                    agent.target_policy = torch.load(f'checkpoint/agent{population.index(agent)}/target_policy_network.pth').to(device)
-                    agent.rating = ratings[population.index(agent)]
-                    agent.frames_processed = frame_counts[population.index(agent)]
-                critic_manager.critic_network = torch.load('checkpoint/critic_network.pth').to(device)
-                critic_manager.target_critic = torch.load('checkpoint/target_critic_network.pth').to(device)
+            print("Loading checkpoint...")               
+            ratings = json.load(open('checkpoint/ratings.json'))
+            frame_counts = json.load(open('checkpoint/frame_counts.json'))
+            eligible = json.load(open('checkpoint/eligible.json'))
 
-        pbt_training(population, environment, num_generations, critic_manager, checkpoint=True)
+            for agent in population:
+                agent.policy_network = torch.load(f'checkpoint/agent{population.index(agent)}/policy_network.pth').to(device)
+                agent.target_policy = torch.load(f'checkpoint/agent{population.index(agent)}/target_policy_network.pth').to(device)
+                agent.policy_network.optimizer.load_state_dict(torch.load(f'checkpoint/agent{population.index(agent)}/optimizer.pth'))
+                agent.rating = ratings[population.index(agent)]
+                agent.frames_processed = frame_counts[population.index(agent)]
+                agent.eligible = eligible[population.index(agent)]
+
+            critic_manager.critic_network = torch.load('checkpoint/critic_network.pth').to(device)
+            critic_manager.target_critic = torch.load('checkpoint/target_critic_network.pth').to(device)
+
+            pbt_training(population, environment, num_generations, critic_manager, checkpoint=True)
+        else:
+            pbt_training(population, environment, num_generations, critic_manager, update_networks=True)
 
     if args.evaluate:
         if args.checkpoint:
@@ -277,11 +318,7 @@ def main():
             rewards = evaluate_agents(agents, environment, population, eval=True)
         else:
             for agent in population[:NUM_AGENTS]:
-                if population.index(agent) == 0 or population.index(agent) == 1:
-                    agent.policy_network = torch.load('best_models/best_policy_network.pth')
-                else:
-                    agent.policy_network = torch.load('best_models/second_best_policy_network.pth') 
-
+                agent.policy_network = torch.load(f'best_models/best_policy_network{population.index(agent)}.pth').to(device)
                 agent.policy_network.eval()
             rewards = evaluate_agents(population[:NUM_AGENTS], environment, population, eval=True)
 

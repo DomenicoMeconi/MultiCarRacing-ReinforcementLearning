@@ -1,29 +1,44 @@
-from pyglet.window import key
 from main import Agent
 import random
 import torch
 
-def key_press(k, mod):
-    if k == key.SPACE:
-        global preview
-        preview = True
-
-
-def key_release(k, mod):
-    if k == key.SPACE:
-        global preview
-        preview = False
-
 def initialize_population(POPULATION_SIZE, LEARNING_RATE_POLICY):
+    """
+    Initialize a population of agents.
+
+    Args:
+        POPULATION_SIZE: The size of the population.
+        LEARNING_RATE_POLICY: The learning rate policy to use for each agent.
+    Returns:
+        A list of agents.
+    """
+
     population = [Agent(LEARNING_RATE_POLICY[i]) for i in range(POPULATION_SIZE)]
     return population
 
 def mutate(network, MUTATION_RATE, MUTATION_SCALE):
+    """
+    Mutate the network by adding Random noise to its parameters.
+
+    Args:
+        network: The network to mutate.
+        MUTATION_RATE: The probability of mutating each parameter.
+        MUTATION_SCALE: The scale of the noise added to the parameters.
+    """
     for param in network.parameters():
         if random.random() < MUTATION_RATE:
             param.data += MUTATION_SCALE * torch.randn_like(param.data)
 
 def update_elo_rating(agent_i, agent_j, result, K=32):
+    """
+    Update the Elo rating of two agents based on the result of a game.
+
+    Args:
+        agent_i: The first agent.
+        agent_j: The second agent.
+        result: The result of the game. 'win' if agent_i won, 'lose' if agent_i lost, 'draw' if it was a draw.
+        K: The K factor used in the Elo rating update formula.
+    """
     Ri = agent_i.rating
     Rj = agent_j.rating
     selo = 1 / (1 + 10 ** ((Rj - Ri) / 400))
@@ -32,20 +47,35 @@ def update_elo_rating(agent_i, agent_j, result, K=32):
     agent_j.rating -= K * (s - selo)
 
 def update_replay_buffer(agent):
+    """
+    Keep the replay buffer size constant.
+
+    Args:
+        agent: The agent to update the replay buffer of.
+    """
     if len(agent.replay_buffer) > 4000:
         agent.replay_buffer = agent.replay_buffer[-4000:]
 
 def eligible(agent):
+    """
+    Check if an agent is eligible for evaluation.
+
+    Args:
+        agent: The agent to check.
+    Returns:
+        True if the agent is eligible for evaluation, False otherwise.
+    """
     if agent.eligible:
-        return agent.frames_processed > 25000
+        return agent.frames_processed > 50000
     else:
-        if agent.frames_processed > 100000:
+        if agent.frames_processed > 200000:
             agent.eligible = True
             return True
         else:   
             return False
         
 def replace_color(data, original, new_value):
+    """Replace a color in the image with a new value."""
     r1, g1, b1 = original
     r2, g2, b2 = new_value
 
@@ -55,6 +85,15 @@ def replace_color(data, original, new_value):
     return data
 
 def preprocess(img, greyscale=False):
+    """
+    Preprocess the image.
+    
+    Args:
+        img: The image to preprocess.
+        greyscale: Whether to convert the image to greyscale.
+    Returns:
+        The preprocessed image.
+    """
     img = img.copy() 
 
     # Unify grass color

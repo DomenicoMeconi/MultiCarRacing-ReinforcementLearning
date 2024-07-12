@@ -3,7 +3,7 @@ import torch.optim as optim
 import torch
 import numpy as np
 
-def layer_init(layer, std=np.sqrt(2),bias_const = 0.0):
+def layer_init(layer, std=np.sqrt(2), bias_const = 0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
@@ -25,7 +25,6 @@ class PolicyNetwork(nn.Module):
         self.fc2 = layer_init(nn.Linear(64, ACTION_DIM))
 
         self.optimizer = optim.Adam(self.parameters(), lr=LEARNING_RATE_POLICY)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.99)
 
     def forward(self, x):
         x = self.conv_layers(x)
@@ -48,15 +47,11 @@ class CriticNetwork(nn.Module):
             nn.ReLU(),
             nn.Flatten()
         )
-        #self.lstm = nn.LSTM(32 * 2 * 2 + ACTION_DIM , LSTM_HIDDEN_SIZE, LSTM_NUM_LAYERS, batch_first=True)
-        #self.fc_q = nn.Linear(LSTM_HIDDEN_SIZE, 1)
         self.fc1 = layer_init(nn.Linear(32 * 2 * 2 + ACTION_DIM, 64))
         self.fc2 = layer_init(nn.Linear(64, 32))
         self.fc3 = layer_init(nn.Linear(32, 1))
 
         self.optimizer = optim.Adam(self.parameters(), lr=LEARNING_RATE_CRITIC)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.99)
-
 
     def forward(self, state, action):
         x = self.conv_layers(state)
@@ -64,12 +59,6 @@ class CriticNetwork(nn.Module):
         x = nn.ReLU()(self.fc1(x))
         x = nn.ReLU()(self.fc2(x))
         q_value = self.fc3(x)
-        '''
-        x = x.unsqueeze(1)  # Add sequence dimension for LSTM
-        x, _ = self.lstm(x)
-        x = x.squeeze(1)  # Remove sequence dimension after LSTM
-        q_value = self.fc_q(x)
-        '''
         return q_value
                  
 
