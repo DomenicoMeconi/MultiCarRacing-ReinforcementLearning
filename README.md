@@ -47,10 +47,10 @@ After successfully installing the required packages, you can run the main script
     ```
 ## Results
 <p>
-    <img src="GIF/ClearTrack.gif" width="200"/>
-    <img src="GIF/StartingFight.gif" width="200"/>
-    <img src="GIF/Startings.gif" width="200"/>
-    <img src="GIF/StartingOvertake.gif" width="200"/>
+    <img src="GIF/ClearTrack.gif" width="300"/>
+    <img src="GIF/StartingFight.gif" width="300"/>
+    <img src="GIF/Startings.gif" width="290"/>
+    <img src="GIF/StartingOvertake.gif" width="320"/>
 </p>
 
 ## Contact
