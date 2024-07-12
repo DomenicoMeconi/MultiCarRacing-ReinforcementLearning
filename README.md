@@ -50,7 +50,7 @@ After successfully installing the required packages, you can run the main script
     <img src="GIF/ClearTrack.gif" width="225" height="180"/>
     <img src="GIF/StartingFight.gif" width="225" height="180"/>
     <img src="GIF/Startings.gif" width="225" height="180"/>
-    <img src="GIF/StartingOvertake.gif" width="235" height="180"/>
+    <img src="GIF/StartingOvertake.gif" width="245" height="180"/>
 </p>
 
 ## Contact
