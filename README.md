@@ -1,4 +1,5 @@
 # Multi-Car Racing Solved Environment
+
 <p>
     <img src="GIF/ClearTrack.gif" width="225" height="180"/>
     <img src="GIF/StartingFight.gif" width="225" height="180"/>
@@ -7,6 +8,7 @@
     <img src="GIF/Startings.gif" width="225" height="180"/>
     <img src="GIF/StartingOvertake.gif" width="245" height="180"/>
 </p>
+
 ## Overview
 This project is based on the concepts presented in the paper [Emergent Coordination Through Competition](https://openreview.net/pdf?id=BkG8sjR5Km). The paper discusses how competition among agents can lead to emergent coordination. Here, we have implemented a population-based algorithm to address the multi-car racing challenge. While the paper utilizes the [SVG0](https://arxiv.org/pdf/1510.09142) algorithm, this implementation leverages the [DDPG](https://arxiv.org/pdf/1509.02971) algorithm to optimize agent performance.
 
