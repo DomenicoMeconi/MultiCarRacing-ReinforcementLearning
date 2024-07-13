@@ -5,7 +5,7 @@
     <img src="GIF/StartingFight.gif" width="225" height="180"/>
 </p>
 <p>
-    <img src="GIF/Startings.gif" width="225" height="180"/>
+    <img src="GIF/Start.gif" width="225" height="180"/>
     <img src="GIF/StartingOvertake.gif" width="245" height="180"/>
 </p>
 
