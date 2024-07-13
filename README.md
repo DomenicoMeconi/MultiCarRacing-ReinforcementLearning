@@ -1,8 +1,8 @@
 # Multi-Car Racing Solved Environment
 
 <p>
+    <img src="GIF/FinishTrack.gif" width="225" height="180"/>
     <img src="GIF/StartingFight.gif" width="225" height="180"/>
-    <img src="GIF/ClearTrack.gif" width="225" height="180"/>
 </p>
 <p>
     <img src="GIF/Start.gif" width="225" height="180"/>
