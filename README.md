@@ -1,12 +1,21 @@
 # Multi-Car Racing Solved Environment
 
+<p>
+    <img src="GIF/ClearTrack.gif" width="225" height="180"/>
+    <img src="GIF/StartingFight.gif" width="225" height="180"/>
+</p>
+<p>
+    <img src="GIF/Startings.gif" width="225" height="180"/>
+    <img src="GIF/StartingOvertake.gif" width="245" height="180"/>
+</p>
+
 ## Overview
 This project is based on the concepts presented in the paper [Emergent Coordination Through Competition](https://openreview.net/pdf?id=BkG8sjR5Km). The paper discusses how competition among agents can lead to emergent coordination. Here, we have implemented a population-based algorithm to address the multi-car racing challenge. While the paper utilizes the [SVG0](https://arxiv.org/pdf/1510.09142) algorithm, this implementation leverages the [DDPG](https://arxiv.org/pdf/1509.02971) algorithm to optimize agent performance.
 
 ## Installation
 
 1. **Install And Set Up The Environment:**
-    Please follow the steps in this git: [https://github.com/igilitschenski/multi_car_racing.git](https://github.com/igilitschenski/multi_car_racing.git)
+    Please follow the steps in this [multi_car_racing git](https://github.com/igilitschenski/multi_car_racing.git)
 
 2. **Ensure Python Version:**
     Make sure you are using Python version greater than 3.11.
@@ -45,7 +54,6 @@ After successfully installing the required packages, you can run the main script
     ```bash
     python .\main -e -c
     ```
-
 ## Contact
 
 For any issues or questions, feel free to contact me at meconidomenico@gmail.com
