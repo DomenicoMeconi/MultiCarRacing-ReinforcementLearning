@@ -1,4 +1,4 @@
-# Multi-Car Racing Solved Environment
+# Multi-Car Racing Environment Solved
 
 <p>
     <img src="GIF/FinishTrack.gif" width="225" height="180"/>
